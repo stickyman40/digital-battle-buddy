@@ -9,30 +9,24 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(\.appEnvironment) private var appEnvironment
-    @State private var isOnboardingComplete = false
+    @StateObject private var appRouter = AppRouter()
     
     var body: some View {
         Group {
-            if isOnboardingComplete {
+            if appEnvironment.isAuthenticated {
                 MainTabView()
             } else {
-                OnboardingIntroView()
+                appRouter.currentOnboardingView
             }
         }
-        .background(MILColors.backgroundPrimary)
-        .onAppear {
-            checkOnboardingStatus()
-        }
-    }
-    
-    private func checkOnboardingStatus() {
-        // For now, we'll skip onboarding and go straight to main app
-        // In a real app, this would check UserDefaults or Firebase for onboarding completion
-        isOnboardingComplete = true
+        .background(MILColors.neutral0.ignoresSafeArea())
+        .environmentObject(appRouter)
     }
 }
 
-#Preview {
-    RootView()
-        .environment(\.appEnvironment, AppEnvironment())
+struct RootView_Previews: PreviewProvider {
+    static var previews: some View {
+        RootView()
+            .environment(\.appEnvironment, AppEnvironment.mock)
+    }
 }

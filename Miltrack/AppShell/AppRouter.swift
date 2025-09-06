@@ -12,6 +12,7 @@ import SwiftUI
 class AppRouter: ObservableObject {
     @Published var currentRoute: AppRoute = .dashboard
     @Published var navigationPath = NavigationPath()
+    @Published var onboardingState: OnboardingState = .intro
     
     enum AppRoute: Hashable {
         case dashboard
@@ -25,6 +26,7 @@ class AppRouter: ObservableObject {
         case onboarding
     }
     
+    // MARK: - Navigation Methods
     func navigate(to route: AppRoute) {
         currentRoute = route
         navigationPath.append(route)
@@ -39,6 +41,71 @@ class AppRouter: ObservableObject {
     func navigateToRoot() {
         navigationPath = NavigationPath()
         currentRoute = .dashboard
+    }
+    
+    // MARK: - Onboarding Navigation
+    func nextOnboardingStep() {
+        switch onboardingState {
+        case .intro:
+            onboardingState = .permissions
+        case .permissions:
+            onboardingState = .auth
+        case .auth:
+            onboardingState = .profileSetup
+        case .profileSetup:
+            onboardingState = .complete
+        case .complete:
+            break
+        }
+    }
+    
+    func previousOnboardingStep() {
+        switch onboardingState {
+        case .intro:
+            break
+        case .permissions:
+            onboardingState = .intro
+        case .auth:
+            onboardingState = .permissions
+        case .profileSetup:
+            onboardingState = .auth
+        case .complete:
+            onboardingState = .profileSetup
+        }
+    }
+    
+    func skipToAuth() {
+        onboardingState = .auth
+    }
+    
+    func skipToProfileSetup() {
+        onboardingState = .profileSetup
+    }
+    
+    func completeOnboarding() {
+        onboardingState = .complete
+    }
+    
+    // MARK: - Computed Properties
+    var shouldShowOnboarding: Bool {
+        return onboardingState != .complete
+    }
+    
+    var currentOnboardingView: some View {
+        Group {
+            switch onboardingState {
+            case .intro:
+                OnboardingIntroView()
+            case .permissions:
+                PermissionsView()
+            case .auth:
+                AuthGateView()
+            case .profileSetup:
+                ProfileSetupView()
+            case .complete:
+                MainTabView()
+            }
+        }
     }
 }
 

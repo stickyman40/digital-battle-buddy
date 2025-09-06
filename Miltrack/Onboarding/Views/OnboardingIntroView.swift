@@ -8,143 +8,115 @@
 import SwiftUI
 
 struct OnboardingIntroView: View {
+    @StateObject private var viewModel = OnboardingViewModel()
     @Environment(\.appEnvironment) private var appEnvironment
-    @State private var currentPage = 0
-    
-    private let pages = [
-        OnboardingPage(
-            title: "Welcome to Digital Battle Buddy",
-            subtitle: "Your comprehensive fitness and health companion",
-            image: "figure.run",
-            description: "Track your PT tests, monitor your health, and stay accountable with your squad."
-        ),
-        OnboardingPage(
-            title: "Fitness Tracking",
-            subtitle: "Monitor your physical readiness",
-            image: "heart.text.square",
-            description: "Log workouts, track PT test scores, and monitor your body composition over time."
-        ),
-        OnboardingPage(
-            title: "Health & Wellness",
-            subtitle: "Take care of your mind and body",
-            image: "brain.head.profile",
-            description: "Track sleep, hydration, mental health check-ins, and overall wellness metrics."
-        ),
-        OnboardingPage(
-            title: "Squad Accountability",
-            subtitle: "Stay connected with your team",
-            image: "person.3.fill",
-            description: "Share progress with your squad, set goals together, and maintain accountability."
-        )
-    ]
     
     var body: some View {
         VStack(spacing: 0) {
-            // Page Content
-            TabView(selection: $currentPage) {
-                ForEach(0..<pages.count, id: \.self) { index in
-                    OnboardingPageView(page: pages[index])
+            // Progress Bar
+            ProgressView(value: viewModel.progressPercentage)
+                .progressViewStyle(LinearProgressViewStyle(tint: MILColors.accent))
+                .milPadding(.horizontal, MILSpacing.screenPadding)
+                .milPadding(.top, MILSpacing.md)
+            
+            // Slide Content
+            TabView(selection: $viewModel.currentSlideIndex) {
+                ForEach(Array(viewModel.slides.enumerated()), id: \.element.id) { index, slide in
+                    OnboardingSlideView(slide: slide)
                         .tag(index)
                 }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .animation(.easeInOut, value: currentPage)
+            .animation(.easeInOut, value: viewModel.currentSlideIndex)
             
-            // Bottom Section
+            // Navigation Controls
             VStack(spacing: MILSpacing.lg) {
                 // Page Indicators
-                HStack(spacing: MILSpacing.sm) {
-                    ForEach(0..<pages.count, id: \.self) { index in
+                HStack(spacing: MILSpacing.md) {
+                    ForEach(0..<viewModel.slides.count, id: \.self) { index in
                         Circle()
-                            .fill(index == currentPage ? MILColors.brandPrimary : MILColors.neutral6)
+                            .fill(index == viewModel.currentSlideIndex ? MILColors.accent : MILColors.neutral6)
                             .frame(width: 8, height: 8)
-                            .animation(.easeInOut, value: currentPage)
+                            .animation(.easeInOut, value: viewModel.currentSlideIndex)
                     }
                 }
+                .milPadding(.bottom, MILSpacing.md)
                 
                 // Action Buttons
-                VStack(spacing: MILSpacing.md) {
-                    if currentPage == pages.count - 1 {
-                        MILButton("Get Started", style: .primary, icon: "arrow.right") {
-                            completeOnboarding()
+                HStack(spacing: MILSpacing.lg) {
+                    if viewModel.currentSlideIndex > 0 {
+                        MILButton("Back", style: .ghost) {
+                            viewModel.previousSlide()
                         }
+                        .accessibilityLabel("Back button")
                     } else {
-                        HStack(spacing: MILSpacing.md) {
-                            MILButton("Skip", style: .ghost) {
-                                completeOnboarding()
-                            }
-                            
-                            MILButton("Next", style: .primary, icon: "arrow.right") {
-                                withAnimation {
-                                    currentPage += 1
-                                }
-                            }
-                        }
+                        Spacer()
                     }
+                    
+                    MILButton(
+                        viewModel.currentSlideIndex == viewModel.slides.count - 1 ? "Continue" : "Next",
+                        style: .primary
+                    ) {
+                        viewModel.nextSlide()
+                    }
+                    .accessibilityLabel("Next button")
                 }
+                .milPadding(.horizontal, MILSpacing.screenPadding)
             }
-            .milPadding(.horizontal, MILSpacing.screenPadding)
-            .milPadding(.bottom, MILSpacing.xxxl)
+            .milPadding(.bottom, MILSpacing.xxl)
         }
-        .background(MILColors.backgroundPrimary)
-    }
-    
-    private func completeOnboarding() {
-        // In a real app, this would save onboarding completion to UserDefaults or Firebase
-        withAnimation {
-            // This would trigger navigation to main app
-            print("Onboarding completed")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(MILColors.neutral0.ignoresSafeArea())
+        .onChange(of: viewModel.currentState) { _, newState in
+            if newState == .permissions {
+                // Navigate to permissions view
+                // This will be handled by the parent router
+            }
         }
     }
 }
 
-struct OnboardingPage {
-    let title: String
-    let subtitle: String
-    let image: String
-    let description: String
-}
-
-struct OnboardingPageView: View {
-    let page: OnboardingPage
+struct OnboardingSlideView: View {
+    let slide: OnboardingSlide
     
     var body: some View {
-        VStack(spacing: MILSpacing.xxxl) {
+        VStack(spacing: MILSpacing.xxl) {
             Spacer()
             
-            // Image
-            Image(systemName: page.image)
-                .font(.system(size: 80, weight: .light))
-                .foregroundColor(MILColors.brandPrimary)
-                .milPadding(.bottom, MILSpacing.lg)
+            // Icon
+            Image(systemName: slide.systemImage)
+                .font(.system(size: 80))
+                .foregroundColor(Color(slide.primaryColor))
+                .milPadding(.bottom, MILSpacing.xl)
             
-            // Content
-            VStack(spacing: MILSpacing.lg) {
-                VStack(spacing: MILSpacing.sm) {
-                    Text(page.title)
-                        .milTypography(.display2, weight: .bold)
-                        .foregroundColor(MILColors.textPrimary)
-                        .multilineTextAlignment(.center)
-                    
-                    Text(page.subtitle)
-                        .milTypography(.title3, weight: .medium)
-                        .foregroundColor(MILColors.brandPrimary)
-                        .multilineTextAlignment(.center)
-                }
-                
-                Text(page.description)
-                    .milTypography(.body)
-                    .foregroundColor(MILColors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .milPadding(.horizontal, MILSpacing.xl)
-            }
+            // Title
+            Text(slide.title)
+                .font(MILTypography.font(.display1))
+                .foregroundColor(MILColors.neutral9)
+                .multilineTextAlignment(.center)
+            
+            // Subtitle
+            Text(slide.subtitle)
+                .font(MILTypography.font(.title2))
+                .foregroundColor(MILColors.accent)
+                .multilineTextAlignment(.center)
+            
+            // Description
+            Text(slide.description)
+                .font(MILTypography.font(.body))
+                .foregroundColor(MILColors.neutral6)
+                .multilineTextAlignment(.center)
+                .milPadding(.horizontal, MILSpacing.xl)
             
             Spacer()
         }
+        .milPadding(.horizontal, MILSpacing.screenPadding)
     }
 }
 
-#Preview {
-    OnboardingIntroView()
-        .environment(\.appEnvironment, AppEnvironment())
+struct OnboardingIntroView_Previews: PreviewProvider {
+    static var previews: some View {
+        OnboardingIntroView()
+            .environment(\.appEnvironment, AppEnvironment.mock)
+    }
 }
