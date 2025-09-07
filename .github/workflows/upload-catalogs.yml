@@ -11,15 +11,16 @@ on:
         description: "Optional custom path to specialties.csv/json"
         required: false
         type: string
-  push:
-    branches: [ main ]
-    paths:
-      - 'Resources/Data/units.csv'
-      - 'Resources/Data/specialties.csv'
-      - 'Resources/Data/units.json'
-      - 'Resources/Data/specialties.json'
-      - 'Tools/CatalogUploader/**'
-      - '.github/workflows/upload-catalogs.yml'
+  # Disabled automatic triggers for now - uncomment when ready to use
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - 'Resources/Data/units.csv'
+  #     - 'Resources/Data/specialties.csv'
+  #     - 'Resources/Data/units.json'
+  #     - 'Resources/Data/specialties.json'
+  #     - 'Tools/CatalogUploader/**'
+  #     - '.github/workflows/upload-catalogs.yml'
 
 jobs:
   upload:
