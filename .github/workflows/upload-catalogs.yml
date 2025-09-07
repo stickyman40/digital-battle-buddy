@@ -1,0 +1,80 @@
+name: Upload Catalogs to Firebase Storage
+
+on:
+  workflow_dispatch:
+    inputs:
+      units_path:
+        description: "Optional custom path to units.csv/json"
+        required: false
+        type: string
+      specialties_path:
+        description: "Optional custom path to specialties.csv/json"
+        required: false
+        type: string
+  push:
+    branches: [ main ]
+    paths:
+      - 'Resources/Data/units.csv'
+      - 'Resources/Data/specialties.csv'
+      - 'Resources/Data/units.json'
+      - 'Resources/Data/specialties.json'
+      - 'Tools/CatalogUploader/**'
+      - '.github/workflows/upload-catalogs.yml'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # for Workload Identity Federation
+      contents: read
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install --upgrade pip google-cloud-storage pandas
+
+      # === Auth Option A: Workload Identity Federation (recommended, no keys) ===
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      # === Auth Option B: Service Account JSON key (fallback) ===
+      - name: Authenticate with JSON key
+        if: failure()
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Run catalog uploader (CSV or JSON)
+        env:
+          BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          UNITS_INPUT: ${{ github.event.inputs.units_path }}
+          SPECS_INPUT: ${{ github.event.inputs.specialties_path }}
+        run: |
+          set -e
+          units_path="${UNITS_INPUT:-}"
+          specs_path="${SPECS_INPUT:-}"
+          # Fallback to repo defaults if not provided
+          if [ -z "$units_path" ]; then
+            if [ -f Resources/Data/units.csv ]; then units_path=Resources/Data/units.csv;
+            elif [ -f Resources/Data/units.json ]; then units_path=Resources/Data/units.json; fi
+          fi
+          if [ -z "$specs_path" ]; then
+            if [ -f Resources/Data/specialties.csv ]; then specs_path=Resources/Data/specialties.csv;
+            elif [ -f Resources/Data/specialties.json ]; then specs_path=Resources/Data/specialties.json; fi
+          fi
+          echo "Units:      ${units_path:-<none>}"
+          echo "Specialties:${specs_path:-<none>}"
+          if [ -z "$BUCKET" ]; then echo "Missing FIREBASE_STORAGE_BUCKET secret"; exit 1; fi
+          args=(--bucket "$BUCKET")
+          if [ -n "$units_path" ]; then args+=(--units "$units_path"); fi
+          if [ -n "$specs_path" ]; then args+=(--specialties "$specs_path"); fi
+          python Tools/CatalogUploader/catalog_uploader.py "${args[@]}"
